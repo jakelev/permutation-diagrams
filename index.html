@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Permutation Mountain Diagrams</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <h1>Permutation Mountain Diagrams</h1>
+    <p class="subtitle">
+      Type a permutation <code>w &isin; S<sub>n</sub></code> to draw its mountain diagram.
+    </p>
+
+    <section class="controls">
+      <div class="control">
+        <label for="w-input">Permutation w</label>
+        <div class="row">
+          <input id="w-input" type="text" spellcheck="false" autocomplete="off"
+                 placeholder="e.g. 24153" />
+          <button id="draw-btn" class="primary">Draw</button>
+        </div>
+        <div class="hint">Digits for n &le; 9 (e.g. <code>24153</code>), or space/comma separated (e.g. <code>2 4 1 5 3</code>).</div>
+      </div>
+
+      <div class="control">
+        <label for="n-slider">Size n = <span id="n-value">5</span></label>
+        <div class="row">
+          <input id="n-slider" type="range" min="2" max="20" step="1" value="5" />
+          <button id="random-btn">Random</button>
+        </div>
+        <div class="hint">Moving the slider draws a random permutation of that size.</div>
+      </div>
+
+      <div class="control">
+        <label>Export</label>
+        <div class="row">
+          <button id="export-svg">SVG</button>
+          <button id="export-png">PNG</button>
+        </div>
+        <div class="hint">SVG is vector (good for LaTeX &amp; slides).</div>
+      </div>
+    </section>
+
+    <div id="error" class="error" style="display:none"></div>
+
+    <div class="diagram-wrap">
+      <svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </main>
+
+  <script src="diagram.js"></script>
+</body>
+</html>
