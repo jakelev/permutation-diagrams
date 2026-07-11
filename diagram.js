@@ -69,6 +69,13 @@ function mountainSubPath(v, xa, xb) {
   return pts;
 }
 
+// The sub-path of mountain v between two points, oriented to start at `from`.
+function orientedArc(v, from, to) {
+  const pts = mountainSubPath(v, Math.min(from.x, to.x), Math.max(from.x, to.x));
+  if (Math.abs(pts[0].x - from.x) > 1e-9) pts.reverse();
+  return pts;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Core construction: permutation -> diagram data                     */
 /* ------------------------------------------------------------------ */
@@ -130,7 +137,68 @@ function permutationToDiagram(w) {
     { x: 2 * n + 1, y: 0 },
   ];
 
-  return { n, w: w.slice(), mountains, dots, highlights, frame };
+  // The blue path as an ordered chain of nodes joined by arcs:
+  //   node_0 (frame end of w_1) - dot_1 - dot_2 - ... - dot_{n-1} - node_n (frame end of w_n)
+  // arc[t] is the blue sub-path on mountain w_t, oriented node_{t-1} -> node_t.
+  // Interior nodes carry their crossing's (i, j) with i = min. Used for click tracing.
+  const nodes = new Array(n + 1);
+  nodes[0] = { ...mountainEnds(w[0], n).leftEnd, end: true };
+  for (let t = 1; t <= n - 1; t++) {
+    nodes[t] = { x: dots[t - 1].x, y: dots[t - 1].y, i: dots[t - 1].pair[0], j: dots[t - 1].pair[1] };
+  }
+  nodes[n] = { ...mountainEnds(w[n - 1], n).leftEnd, end: true };
+
+  const arcs = new Array(n + 1);
+  for (let t = 1; t <= n; t++) arcs[t] = orientedArc(w[t - 1], nodes[t - 1], nodes[t]);
+
+  return { n, w: w.slice(), mountains, dots, highlights, frame, nodes, arcs };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Click-to-trace: the "northeast" sub-path from a red dot            */
+/* ------------------------------------------------------------------ */
+
+// Append arc points onto pts, skipping arc[0] (it coincides with pts' last point).
+function appendArc(pts, arc) {
+  for (let k = 1; k < arc.length; k++) pts.push(arc[k]);
+}
+
+/**
+ * Trace the highlight produced by clicking the red dot at step s (1..n-1),
+ * i.e. the crossing (i, j) of w_s and w_{s+1}.
+ *
+ * The northeast branch runs along mountain j (the larger index). We follow the
+ * blue path in that direction ("away from i, starting at j" in the permutation)
+ * until we reach a dot whose smaller index i' < i, or the end of the path.
+ * If the branch along j does not actually head northeast (its next node has
+ * smaller x), there is no NE path and we highlight the dot alone.
+ *
+ * @returns { dotOnly, clicked: {x,y}, points: [{x,y}, ...] }
+ */
+function neHighlight(diagram, s) {
+  const { nodes, arcs, w, n } = diagram;
+  const nd = nodes[s];
+  const i = nd.i;
+  const clicked = { x: nd.x, y: nd.y };
+
+  // Pattern "i j" (w_s < w_{s+1}) reads forward; "j i" reads backward.
+  const dir = w[s - 1] < w[s] ? 1 : -1;
+  const neighbor = nodes[s + dir];
+  if (!(neighbor.x > nd.x)) return { dotOnly: true, clicked, points: [clicked] };
+
+  const pts = [clicked];
+  if (dir === 1) {
+    for (let t = s + 1; ; t++) {
+      appendArc(pts, arcs[t]);
+      if (t === n || nodes[t].i < i) break;
+    }
+  } else {
+    for (let t = s; ; t--) {
+      appendArc(pts, arcs[t].slice().reverse());
+      if (t - 1 === 0 || nodes[t - 1].i < i) break;
+    }
+  }
+  return { dotOnly: false, clicked, points: pts };
 }
 
 /* ------------------------------------------------------------------ */
@@ -210,10 +278,13 @@ function ptsStr(points) {
 
 /**
  * Render a diagram into an <svg> element (cleared first).
- * The frame (mountains 1 and n) is drawn black; interior mountains gray.
+ *
+ * options.selectedStep : step (1..n-1) of a clicked dot to trace, or null
+ * options.onDotClick   : callback(step) invoked when a red dot is clicked
  */
-function renderDiagram(diagram, svg) {
+function renderDiagram(diagram, svg, options = {}) {
   const { n, mountains, dots, highlights, frame } = diagram;
+  const { selectedStep = null, onDotClick = null } = options;
 
   // ---- viewBox (math bbox padded for labels) ----
   // The frame is the widest/deepest element: x in [1, 2n+1], down to y = n.
@@ -235,8 +306,11 @@ function renderDiagram(diagram, svg) {
   const gGray = el("g", {});
   const gFrame = el("g", {});
   const gBlue = el("g", {});
+  const gOverlay = el("g", {});
   const gDots = el("g", {});
   const gLabels = el("g", {});
+
+  const HL = "#f59e0b"; // amber highlight for the traced sub-path
 
   // ---- mountains (all light gray) ----
   for (const m of mountains) {
@@ -273,12 +347,33 @@ function renderDiagram(diagram, svg) {
     }));
   }
 
-  // ---- red dots ----
-  for (const d of dots) {
-    gDots.appendChild(el("circle", {
-      cx: d.x * U, cy: d.y * U, r: rDot,
-      fill: "#e23b3b", stroke: "#ffffff", "stroke-width": rDot * 0.35,
+  // ---- traced sub-path overlay (from a clicked dot) ----
+  const trace = selectedStep != null ? neHighlight(diagram, selectedStep) : null;
+  if (trace && !trace.dotOnly) {
+    gOverlay.appendChild(el("polyline", {
+      points: ptsStr(trace.points),
+      fill: "none",
+      stroke: HL,
+      "stroke-width": wBlue * 2.1,
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round",
+      "stroke-opacity": "0.85",
     }));
+  }
+
+  // ---- red dots (clickable) ----
+  for (const d of dots) {
+    const isSel = d.step === selectedStep;
+    const c = el("circle", {
+      cx: d.x * U, cy: d.y * U, r: isSel ? rDot * 1.25 : rDot,
+      fill: isSel ? HL : "#e23b3b",
+      stroke: "#ffffff", "stroke-width": rDot * 0.35,
+    });
+    if (onDotClick) {
+      c.style.cursor = "pointer";
+      c.addEventListener("click", (ev) => { ev.stopPropagation(); onDotClick(d.step); });
+    }
+    gDots.appendChild(c);
   }
 
   // ---- position labels 1..n above the peaks ----
@@ -294,10 +389,11 @@ function renderDiagram(diagram, svg) {
     gLabels.appendChild(t);
   }
 
-  // draw order: gray, frame, blue, dots, labels
+  // draw order: gray, frame, blue, overlay, dots, labels
   svg.appendChild(gGray);
   svg.appendChild(gFrame);
   svg.appendChild(gBlue);
+  svg.appendChild(gOverlay);
   svg.appendChild(gDots);
   svg.appendChild(gLabels);
 }
@@ -361,21 +457,38 @@ function exportPNG(svg, name, scale = 2) {
   const errBox = $("error");
   const svg = $("diagram");
 
-  let current = { w: null };
+  let current = { w: null, diagram: null, selectedStep: null };
 
   function setError(msg) {
     errBox.textContent = msg || "";
     errBox.style.display = msg ? "block" : "none";
   }
 
+  function paint() {
+    renderDiagram(current.diagram, svg, {
+      selectedStep: current.selectedStep,
+      onDotClick: (step) => {
+        current.selectedStep = current.selectedStep === step ? null : step;
+        paint();
+      },
+    });
+  }
+
   function draw(w) {
     current.w = w;
+    current.diagram = permutationToDiagram(w);
+    current.selectedStep = null; // clear any trace on a new permutation
     nSlider.value = String(w.length);
     nValue.textContent = String(w.length);
     wInput.value = formatPermutation(w);
     setError("");
-    renderDiagram(permutationToDiagram(w), svg);
+    paint();
   }
+
+  // clicking empty canvas clears the current trace
+  svg.addEventListener("click", () => {
+    if (current.selectedStep != null) { current.selectedStep = null; paint(); }
+  });
 
   function drawFromInput() {
     const res = parsePermutation(wInput.value);
