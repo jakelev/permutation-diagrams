@@ -290,7 +290,8 @@ const DEFAULT_PATH_STYLE = {
   greenColor: "#16a34a", greenOpacity: 0.5,
   blend: "normal", // mix-blend-mode for the colored paths
   top: "red",      // which color is drawn last (on top)
-  width: 1.8,      // stroke width as a multiple of the blue path width
+  redWidth: 1.8,   // stroke widths as a multiple of the blue path width
+  greenWidth: 1.8,
 };
 
 /**
@@ -374,13 +375,13 @@ function renderDiagram(diagram, svg, options = {}) {
   // ---- all NE paths, red/green color-coded (appearance is user-tunable) ----
   // Dot-only (length-0) traces are shown as green dot-markers in the dots layer.
   if (showAll) {
-    const drawTrace = (t, color, opacity) => {
+    const drawTrace = (t, color, opacity, widthMul) => {
       if (t.points.length < 2) return;
       const poly = el("polyline", {
         points: ptsStr(t.points),
         fill: "none",
         stroke: color,
-        "stroke-width": wBlue * style.width,
+        "stroke-width": wBlue * widthMul,
         "stroke-linejoin": "round",
         "stroke-linecap": "round",
         "stroke-opacity": String(opacity),
@@ -388,8 +389,8 @@ function renderDiagram(diagram, svg, options = {}) {
       if (style.blend && style.blend !== "normal") poly.style.mixBlendMode = style.blend;
       gOverlay.appendChild(poly);
     };
-    const drawReds = () => { for (const t of allTraces) if (isRed(t)) drawTrace(t, style.redColor, style.redOpacity); };
-    const drawGreens = () => { for (const t of allTraces) if (!isRed(t)) drawTrace(t, style.greenColor, style.greenOpacity); };
+    const drawReds = () => { for (const t of allTraces) if (isRed(t)) drawTrace(t, style.redColor, style.redOpacity, style.redWidth); };
+    const drawGreens = () => { for (const t of allTraces) if (!isRed(t)) drawTrace(t, style.greenColor, style.greenOpacity, style.greenWidth); };
     // draw the "top" color last so it lands on top
     if (style.top === "red") { drawGreens(); drawReds(); } else { drawReds(); drawGreens(); }
   }
@@ -551,25 +552,30 @@ function exportPNG(svg, name, scale = 2) {
 
   // ---- live style controls (color / transparency tuning) ----
   const styleControls = {
-    redColor: $("red-color"), redOpacity: $("red-opacity"),
-    greenColor: $("green-color"), greenOpacity: $("green-opacity"),
-    width: $("line-width"), top: $("draw-order"), blend: $("blend-mode"),
+    redColor: $("red-color"), redOpacity: $("red-opacity"), redWidth: $("red-width"),
+    greenColor: $("green-color"), greenOpacity: $("green-opacity"), greenWidth: $("green-width"),
+    top: $("draw-order"), blend: $("blend-mode"),
   };
-  const opacityOut = { redOpacity: $("red-opacity-val"), greenOpacity: $("green-opacity-val"), width: $("line-width-val") };
+  const numOut = {
+    redOpacity: $("red-opacity-val"), greenOpacity: $("green-opacity-val"),
+    redWidth: $("red-width-val"), greenWidth: $("green-width-val"),
+  };
 
   function readStyleControls() {
     current.style = {
       redColor: styleControls.redColor.value,
       redOpacity: parseFloat(styleControls.redOpacity.value),
+      redWidth: parseFloat(styleControls.redWidth.value),
       greenColor: styleControls.greenColor.value,
       greenOpacity: parseFloat(styleControls.greenOpacity.value),
-      width: parseFloat(styleControls.width.value),
+      greenWidth: parseFloat(styleControls.greenWidth.value),
       top: styleControls.top.value,
       blend: styleControls.blend.value,
     };
-    opacityOut.redOpacity.textContent = current.style.redOpacity.toFixed(2);
-    opacityOut.greenOpacity.textContent = current.style.greenOpacity.toFixed(2);
-    opacityOut.width.textContent = current.style.width.toFixed(1);
+    numOut.redOpacity.textContent = current.style.redOpacity.toFixed(2);
+    numOut.greenOpacity.textContent = current.style.greenOpacity.toFixed(2);
+    numOut.redWidth.textContent = current.style.redWidth.toFixed(1);
+    numOut.greenWidth.textContent = current.style.greenWidth.toFixed(1);
     if (!current.showAll) { current.showAll = true; current.selectedStep = null; }
     paint();
   }
@@ -579,9 +585,10 @@ function exportPNG(svg, name, scale = 2) {
   $("reset-style").addEventListener("click", () => {
     styleControls.redColor.value = DEFAULT_PATH_STYLE.redColor;
     styleControls.redOpacity.value = DEFAULT_PATH_STYLE.redOpacity;
+    styleControls.redWidth.value = DEFAULT_PATH_STYLE.redWidth;
     styleControls.greenColor.value = DEFAULT_PATH_STYLE.greenColor;
     styleControls.greenOpacity.value = DEFAULT_PATH_STYLE.greenOpacity;
-    styleControls.width.value = DEFAULT_PATH_STYLE.width;
+    styleControls.greenWidth.value = DEFAULT_PATH_STYLE.greenWidth;
     styleControls.top.value = DEFAULT_PATH_STYLE.top;
     styleControls.blend.value = DEFAULT_PATH_STYLE.blend;
     readStyleControls();
