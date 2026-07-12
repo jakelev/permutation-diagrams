@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TCCW Construction</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wide">
+    <nav class="page-nav">
+      <a href="index.html">&larr; Single diagram</a>
+      <strong>TCCW construction</strong>
+    </nav>
+    <h1>TCCW Construction</h1>
+    <p class="subtitle">
+      From TCCW diagrams <code>w</code> (size n) and <code>v</code> (size m) and an
+      n-subset <code>X</code> of <code>{2,&hellip;,n+m+1}</code>, build the TCCW
+      diagram <code>u = w' 1 v'</code> of size <code>n+m+1</code>.
+    </p>
+
+    <section class="controls">
+      <div class="control">
+        <label for="w-input">Permutation w</label>
+        <div class="row">
+          <input id="w-input" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. 231" />
+          <button id="rand-w" class="primary">Random TCCW</button>
+        </div>
+        <div class="hint">Reversed if needed so w<sub>1</sub> &le; w<sub>n</sub>.</div>
+      </div>
+
+      <div class="control">
+        <label for="v-input">Permutation v</label>
+        <div class="row">
+          <input id="v-input" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. 12" />
+          <button id="rand-v" class="primary">Random TCCW</button>
+        </div>
+        <div class="hint">Reversed if needed so v<sub>1</sub> &ge; v<sub>m</sub>.</div>
+      </div>
+
+      <div class="control">
+        <label for="x-input">Subset X <span id="x-req" class="muted-inline"></span></label>
+        <div class="row">
+          <input id="x-input" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. 2 4 5" />
+          <button id="rand-x">Random X</button>
+        </div>
+        <div class="hint">X &sube; {2,&hellip;,n+m+1}, |X| = n. Its complement is Y.</div>
+      </div>
+    </section>
+
+    <div id="error" class="error" style="display:none"></div>
+
+    <div class="canvas-toolbar">
+      <label class="toggle-all-label"><input type="checkbox" id="check-tccw" /> Check TCCW</label>
+      <label class="hl-label"><input type="checkbox" id="hl-w" /> <span class="sw sw-w"></span> w-subdiagram (mountains X)</label>
+      <label class="hl-label"><input type="checkbox" id="hl-v" /> <span class="sw sw-v"></span> v-subdiagram (mountains Y)</label>
+      <label class="hl-label"><input type="checkbox" id="hl-1" /> <span class="sw sw-1"></span> new 1-mountain</label>
+    </div>
+    <p class="canvas-hint">Click a red dot on any diagram to trace its northeast path (green if it satisfies TCCW, red if not).</p>
+
+    <div class="cols">
+      <div class="col-left">
+        <figure class="diagram-block">
+          <figcaption>w = <span id="cap-w"></span></figcaption>
+          <div class="diagram-wrap"><svg id="diagram-w" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        </figure>
+        <figure class="diagram-block">
+          <figcaption>v = <span id="cap-v"></span></figcaption>
+          <div class="diagram-wrap"><svg id="diagram-v" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        </figure>
+      </div>
+      <div class="col-right">
+        <figure class="diagram-block">
+          <figcaption>u = w&prime; 1 v&prime; = <span id="cap-u"></span></figcaption>
+          <div class="diagram-wrap"><svg id="diagram-u" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        </figure>
+      </div>
+    </div>
+  </main>
+
+  <script src="diagram.js"></script>
+  <script src="construction.js"></script>
+</body>
+</html>

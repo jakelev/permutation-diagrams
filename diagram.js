@@ -315,6 +315,9 @@ const DEFAULT_PATH_STYLE = {
 function renderDiagram(diagram, svg, options = {}) {
   const { n, mountains, dots, highlights, frame } = diagram;
   const { selectedStep = null, onDotClick = null, showAll = false } = options;
+  // overlays: extra colored sub-paths [{points, color, width, opacity}] (page 2).
+  // singleGreenRed: color a single clicked trace green/red by TCCW instead of amber.
+  const { overlays = [], singleGreenRed = false } = options;
   const style = { ...DEFAULT_PATH_STYLE, ...(options.style || {}) };
 
   // ---- viewBox (math bbox padded for labels) ----
@@ -409,17 +412,34 @@ function renderDiagram(diagram, svg, options = {}) {
     if (style.top === "red") { drawGreens(); drawReds(); } else { drawReds(); drawGreens(); }
   }
 
-  // ---- single traced sub-path overlay (from a clicked dot) ----
-  const trace = !showAll && selectedStep != null ? neHighlight(diagram, selectedStep) : null;
-  if (trace && !trace.dotOnly) {
+  // ---- extra sub-path overlays (page 2: w / v / 1-mountain subdiagrams) ----
+  for (const ov of overlays) {
+    if (!ov.points || ov.points.length < 2) continue;
     gOverlay.appendChild(el("polyline", {
-      points: ptsStr(trace.points),
+      points: ptsStr(ov.points),
       fill: "none",
-      stroke: HL,
-      "stroke-width": wBlue * 2.1,
+      stroke: ov.color,
+      "stroke-width": wBlue * (ov.width || 2.5),
       "stroke-linejoin": "round",
       "stroke-linecap": "round",
-      "stroke-opacity": "0.85",
+      "stroke-opacity": String(ov.opacity != null ? ov.opacity : 0.5),
+    }));
+  }
+
+  // ---- single traced sub-path overlay (from a clicked dot) ----
+  // On page 1 this is amber; on page 2 (singleGreenRed) it is green/red by TCCW.
+  const selTrace = selectedStep != null ? neHighlight(diagram, selectedStep) : null;
+  const selGreen = selTrace ? !isRed(selTrace) : false;
+  const selColor = singleGreenRed ? (selGreen ? style.greenColor : style.redColor) : HL;
+  if (selTrace && !selTrace.dotOnly) {
+    gOverlay.appendChild(el("polyline", {
+      points: ptsStr(selTrace.points),
+      fill: "none",
+      stroke: selColor,
+      "stroke-width": wBlue * (singleGreenRed ? 1.5 : 2.1),
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round",
+      "stroke-opacity": singleGreenRed ? "1" : "0.85",
     }));
   }
 
@@ -429,7 +449,7 @@ function renderDiagram(diagram, svg, options = {}) {
     const dotOnlyGreen = showAll && allTraces[d.step - 1].dotOnly;
     const c = el("circle", {
       cx: d.x * U, cy: d.y * U, r: isSel || dotOnlyGreen ? rDot * 1.25 : rDot,
-      fill: isSel ? HL : dotOnlyGreen ? style.greenColor : "#e23b3b",
+      fill: isSel ? selColor : dotOnlyGreen ? style.greenColor : "#e23b3b",
       stroke: "#ffffff", "stroke-width": rDot * 0.35,
     });
     if (onDotClick) {
@@ -525,93 +545,122 @@ function exportPNG(svg, name, scale = 2) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  UI wiring                                                          */
+/*  TCCW property                                                      */
 /* ------------------------------------------------------------------ */
 
-(function main() {
-  if (typeof document === "undefined") return; // allow use as a pure module
-
-  const $ = (id) => document.getElementById(id);
-  const wInput = $("w-input");
-  const nSlider = $("n-slider");
-  const nValue = $("n-value");
-  const errBox = $("error");
-  const svg = $("diagram");
-
-  const toggleAllBox = $("toggle-all");
-  let current = { w: null, diagram: null, selectedStep: null, showAll: false };
-
-  function setError(msg) {
-    errBox.textContent = msg || "";
-    errBox.style.display = msg ? "block" : "none";
+// A diagram is TCCW iff every northeast path is green (ends counterclockwise,
+// i.e. terminal j' <= starting j).
+function isDiagramTCCW(diagram) {
+  for (let s = 1; s <= diagram.n - 1; s++) {
+    const t = neHighlight(diagram, s);
+    if (t.endJ > t.startJ) return false;
   }
+  return true;
+}
 
-  function paint() {
-    toggleAllBox.checked = current.showAll; // keep the checkbox in sync
-    renderDiagram(current.diagram, svg, {
-      selectedStep: current.selectedStep,
-      showAll: current.showAll,
-      onDotClick: (step) => {
-        current.showAll = false; // a single click leaves "show all" mode
-        current.selectedStep = current.selectedStep === step ? null : step;
-        paint();
-      },
-    });
+// The blue sub-path of a diagram spanning positions t1..t2 (1-indexed), i.e.
+// from node_{t1-1} to node_{t2}. Used to highlight the w / v / 1 subdiagrams.
+function pathOverPositions(diagram, t1, t2) {
+  if (t2 < t1) return [];
+  const pts = [{ ...diagram.arcs[t1][0] }];
+  for (let t = t1; t <= t2; t++) appendArc(pts, diagram.arcs[t]);
+  return pts;
+}
+
+/* ------------------------------------------------------------------ */
+/*  TCCW generation & the recursive construction u = w' 1 v'          */
+/* ------------------------------------------------------------------ */
+
+function comb(n, k) {
+  if (k < 0 || k > n) return 0;
+  k = Math.min(k, n - k);
+  let r = 1;
+  for (let i = 0; i < k; i++) r = (r * (n - i)) / (i + 1);
+  return Math.round(r);
+}
+
+// c[k] = number of TCCW diagrams of size k ( = |A_k| = |D_k| ), the Euler
+// zigzag numbers 1,1,1,2,5,16,61,...  2 c_k = sum_a C(k-1,a) c_a c_{k-1-a}.
+const _tccwC = [1, 1];
+function tccwCount(k) {
+  while (_tccwC.length <= k) {
+    const j = _tccwC.length;
+    let total = 0;
+    for (let a = 0; a <= j - 1; a++) total += comb(j - 1, a) * _tccwC[a] * _tccwC[j - 1 - a];
+    _tccwC[j] = total / 2;
   }
+  return _tccwC[k];
+}
 
-  function draw(w) {
-    current.w = w;
-    current.diagram = permutationToDiagram(w);
-    current.selectedStep = null; // clear any single trace on a new permutation
-    // NB: current.showAll is intentionally preserved across permutations
-    nSlider.value = String(w.length);
-    nValue.textContent = String(w.length);
-    wInput.value = formatPermutation(w);
-    setError("");
-    paint();
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+  return arr;
+}
 
-  toggleAllBox.addEventListener("change", () => {
-    current.showAll = toggleAllBox.checked;
-    current.selectedStep = null;
-    paint();
-  });
+// Relabel a permutation's values 1..k onto the sorted target set.
+function relabel(p, sortedSet) {
+  return p.map((x) => sortedSet[x - 1]);
+}
 
-  // clicking empty canvas clears the current single trace
-  svg.addEventListener("click", () => {
-    if (current.selectedStep != null) { current.selectedStep = null; paint(); }
-  });
+// Reverse p if needed so that (leFirst ? p_1<=p_n : p_1>=p_n).
+function orient(p, leFirst) {
+  if (p.length < 2) return p.slice();
+  const ok = leFirst ? p[0] <= p[p.length - 1] : p[0] >= p[p.length - 1];
+  return ok ? p.slice() : p.slice().reverse();
+}
 
-  // keep the diagram fitted to the viewport
-  window.addEventListener("resize", () => fitToView(svg));
+/**
+ * The recursive construction u = w' 1 v'.
+ * w is oriented to w_1<=w_n, v to v_1>=v_m; w' relabels w onto sorted(X),
+ * v' relabels v onto sorted(Y = {2..N}\X). Returns u plus the pieces.
+ */
+function constructU(w, v, X) {
+  const wc = orient(w, true);
+  const vc = orient(v, false);
+  const n = wc.length, m = vc.length, N = n + m + 1;
+  const Xs = X.slice().sort((a, b) => a - b);
+  const inX = new Set(Xs);
+  const Ys = [];
+  for (let x = 2; x <= N; x++) if (!inX.has(x)) Ys.push(x);
+  const u = [...relabel(wc, Xs), 1, ...relabel(vc, Ys)];
+  return { u, wc, vc, X: Xs, Y: Ys, n, m, N };
+}
 
-  function drawFromInput() {
-    const res = parsePermutation(wInput.value);
-    if (!res.ok) { setError(res.error); return; }
-    if (res.n > 20) { setError("n must be between 0 and 20."); return; }
-    draw(res.w);
+// A uniform random n-element subset of {2..N}, sorted.
+function randomSubset(n, N) {
+  const pool = [];
+  for (let x = 2; x <= N; x++) pool.push(x);
+  return shuffle(pool).slice(0, n).sort((a, b) => a - b);
+}
+
+/**
+ * A uniformly random TCCW permutation of size N.
+ * mode 'A' forces w_1<w_n, 'D' forces w_1>w_n, null leaves it free.
+ * (Uniform because (a, w in A_a, v in D_b, X) <-> A_N u D_N is a bijection.)
+ */
+function buildTCCW(N, mode = null) {
+  if (N <= 0) return [];
+  if (N === 1) return [1];
+  const wts = [];
+  let tot = 0;
+  for (let a = 0; a <= N - 1; a++) {
+    const wt = comb(N - 1, a) * tccwCount(a) * tccwCount(N - 1 - a);
+    wts.push(wt);
+    tot += wt;
   }
+  let r = Math.random() * tot, a = 0;
+  while (a < N - 1 && r >= wts[a]) { r -= wts[a]; a++; }
+  const b = N - 1 - a;
+  const w = buildTCCW(a, "A");
+  const v = buildTCCW(b, "D");
+  const X = randomSubset(a, N);
+  const { u } = constructU(w, v, X);
+  if (mode === "A" && u[0] > u[u.length - 1]) return u.slice().reverse();
+  if (mode === "D" && u[0] < u[u.length - 1]) return u.slice().reverse();
+  return u;
+}
 
-  wInput.addEventListener("keydown", (e) => { if (e.key === "Enter") drawFromInput(); });
-  wInput.addEventListener("blur", drawFromInput);
-  $("draw-btn").addEventListener("click", drawFromInput);
-
-  nSlider.addEventListener("input", () => {
-    const n = parseInt(nSlider.value, 10);
-    nValue.textContent = String(n);
-    draw(randomPermutation(n));
-  });
-
-  $("random-btn").addEventListener("click", () => {
-    const n = current.w ? current.w.length : parseInt(nSlider.value, 10);
-    draw(randomPermutation(n));
-  });
-
-  $("export-svg").addEventListener("click", () =>
-    exportSVG(svg, "permutation-" + formatPermutation(current.w).replace(/\s+/g, "_")));
-  $("export-png").addEventListener("click", () =>
-    exportPNG(svg, "permutation-" + formatPermutation(current.w).replace(/\s+/g, "_")));
-
-  // initial diagram: the example from the design, w = 24153
-  draw([2, 4, 1, 5, 3]);
-})();
+function randomTCCW(N) { return buildTCCW(N, null); }

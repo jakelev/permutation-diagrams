@@ -8,6 +8,10 @@
 </head>
 <body>
   <main>
+    <nav class="page-nav">
+      <strong>Single diagram</strong>
+      <a href="construction.html">TCCW construction &rarr;</a>
+    </nav>
     <h1>Permutation Mountain Diagrams</h1>
     <p class="subtitle">
       Type a permutation <code>w &isin; S<sub>n</sub></code> to draw its mountain diagram.
@@ -29,8 +33,9 @@
         <div class="row">
           <input id="n-slider" type="range" min="0" max="20" step="1" value="5" />
           <button id="random-btn">Random</button>
+          <button id="random-tccw-btn">Random TCCW</button>
         </div>
-        <div class="hint">Moving the slider draws a random permutation of that size.</div>
+        <div class="hint">Moving the slider draws a random permutation of that size. &ldquo;Random TCCW&rdquo; draws a random topologically-counterclockwise one.</div>
       </div>
 
       <div class="control">
@@ -56,5 +61,6 @@
   </main>
 
   <script src="diagram.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

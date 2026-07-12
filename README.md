@@ -5,13 +5,25 @@ An interactive web app that draws the mountain diagram of a permutation
 
 ## Files
 
-- `index.html` — page layout and controls
-- `style.css`  — styling
-- `diagram.js` — everything else, in three clearly separated layers:
-  - **Pure math** (`permutationToDiagram`, `crossing`, `mountainY`, …) — no DOM,
-    returns all geometry in math coordinates. Reusable for later work.
+- `index.html` / `app.js` — single-diagram page (input, slider, Random,
+  Random TCCW, export, click-to-trace, "show all northeast paths").
+- `construction.html` / `construction.js` — the recursive TCCW construction
+  `u = w' 1 v'`: two input diagrams `w`, `v` and a subset `X`, showing `w`, `v`
+  and `u` with sub-diagram highlights, "Check TCCW", and click-to-trace.
+- `style.css`  — styling for both pages.
+- `diagram.js` — the shared library, in clearly separated layers:
+  - **Pure math** (`permutationToDiagram`, `crossing`, `mountainY`, `neHighlight`,
+    `isDiagramTCCW`, …) — no DOM, geometry in math coordinates.
+  - **TCCW generation** (`buildTCCW` / `randomTCCW`, `constructU`) — the
+    recursive construction; counts are the Euler zigzag numbers.
   - **Rendering** (`renderDiagram`) — draws the geometry into an `<svg>`.
-  - **UI wiring** — input parsing, slider, Random button, export.
+
+## TCCW diagrams
+
+A northeast path is *green* if it ends counterclockwise of where it begins
+(terminal `j' ≤ j`). A diagram is **TCCW** iff every northeast path is green.
+`u = w' 1 v'` is TCCW whenever `w`, `v` are; the number of TCCW diagrams of
+size `n` is the Euler zigzag number (1, 1, 1, 2, 5, 16, 61, …).
 
 ## The construction
 
