@@ -173,7 +173,11 @@ function appendArc(pts, arc) {
  * If the branch along j does not actually head northeast (its next node has
  * smaller x), there is no NE path and we highlight the dot alone.
  *
- * @returns { dotOnly, clicked: {x,y}, points: [{x,y}, ...] }
+ * `endJ` is the larger index j' of the terminus: the value of the last mountain
+ * the trace runs along (= the terminal dot's j in the stop case). Used for the
+ * red/green coloring in "show all" mode. For a dot-only trace, endJ = j.
+ *
+ * @returns { dotOnly, clicked: {x,y}, points: [{x,y}, ...], startJ, endJ }
  */
 function neHighlight(diagram, s) {
   const { nodes, arcs, w, n } = diagram;
@@ -184,21 +188,25 @@ function neHighlight(diagram, s) {
   // Pattern "i j" (w_s < w_{s+1}) reads forward; "j i" reads backward.
   const dir = w[s - 1] < w[s] ? 1 : -1;
   const neighbor = nodes[s + dir];
-  if (!(neighbor.x > nd.x)) return { dotOnly: true, clicked, points: [clicked] };
+  if (!(neighbor.x > nd.x))
+    return { dotOnly: true, clicked, points: [clicked], startJ: nd.j, endJ: nd.j };
 
   const pts = [clicked];
+  let endJ;
   if (dir === 1) {
     for (let t = s + 1; ; t++) {
       appendArc(pts, arcs[t]);
+      endJ = w[t - 1]; // mountain w_t just traversed
       if (t === n || nodes[t].i < i) break;
     }
   } else {
     for (let t = s; ; t--) {
       appendArc(pts, arcs[t].slice().reverse());
+      endJ = w[t - 1];
       if (t - 1 === 0 || nodes[t - 1].i < i) break;
     }
   }
-  return { dotOnly: false, clicked, points: pts };
+  return { dotOnly: false, clicked, points: pts, startJ: nd.j, endJ };
 }
 
 /* ------------------------------------------------------------------ */
@@ -284,7 +292,7 @@ function ptsStr(points) {
  */
 function renderDiagram(diagram, svg, options = {}) {
   const { n, mountains, dots, highlights, frame } = diagram;
-  const { selectedStep = null, onDotClick = null } = options;
+  const { selectedStep = null, onDotClick = null, showAll = false } = options;
 
   // ---- viewBox (math bbox padded for labels) ----
   // The frame is the widest/deepest element: x in [1, 2n+1], down to y = n.
@@ -310,7 +318,8 @@ function renderDiagram(diagram, svg, options = {}) {
   const gDots = el("g", {});
   const gLabels = el("g", {});
 
-  const HL = "#f59e0b"; // amber highlight for the traced sub-path
+  const HL = "#f59e0b"; // amber highlight for a single traced sub-path
+  const RED = "#dc2626", GREEN = "#16a34a"; // "show all" coloring
 
   // ---- mountains (all light gray) ----
   for (const m of mountains) {
@@ -334,21 +343,44 @@ function renderDiagram(diagram, svg, options = {}) {
     "stroke-linecap": "round",
   }));
 
-  // ---- blue highlighted path ----
-  for (const h of highlights) {
-    if (h.points.length < 2) continue; // degenerate (dot at the very left end)
-    gBlue.appendChild(el("polyline", {
-      points: ptsStr(h.points),
-      fill: "none",
-      stroke: "#2f7bf0",
-      "stroke-width": wBlue,
-      "stroke-linejoin": "round",
-      "stroke-linecap": "round",
-    }));
+  // ---- blue highlighted path (hidden while showing all NE paths) ----
+  if (!showAll) {
+    for (const h of highlights) {
+      if (h.points.length < 2) continue; // degenerate (dot at the very left end)
+      gBlue.appendChild(el("polyline", {
+        points: ptsStr(h.points),
+        fill: "none",
+        stroke: "#2f7bf0",
+        "stroke-width": wBlue,
+        "stroke-linejoin": "round",
+        "stroke-linecap": "round",
+      }));
+    }
   }
 
-  // ---- traced sub-path overlay (from a clicked dot) ----
-  const trace = selectedStep != null ? neHighlight(diagram, selectedStep) : null;
+  // ---- all NE paths, red/green color-coded (transparent, greens dimmer) ----
+  if (showAll) {
+    const drawTrace = (t, color, opacity) => {
+      if (t.points.length < 2) return; // dot-only: coincides with the red dot
+      gOverlay.appendChild(el("polyline", {
+        points: ptsStr(t.points),
+        fill: "none",
+        stroke: color,
+        "stroke-width": wBlue * 1.8,
+        "stroke-linejoin": "round",
+        "stroke-linecap": "round",
+        "stroke-opacity": String(opacity),
+      }));
+    };
+    const traces = [];
+    for (let s = 1; s <= n - 1; s++) traces.push(neHighlight(diagram, s));
+    // red = j' > j (draw on top of the dimmer greens so they stand out)
+    for (const t of traces) if (!(t.endJ > t.startJ)) drawTrace(t, GREEN, 0.3);
+    for (const t of traces) if (t.endJ > t.startJ) drawTrace(t, RED, 0.6);
+  }
+
+  // ---- single traced sub-path overlay (from a clicked dot) ----
+  const trace = !showAll && selectedStep != null ? neHighlight(diagram, selectedStep) : null;
   if (trace && !trace.dotOnly) {
     gOverlay.appendChild(el("polyline", {
       points: ptsStr(trace.points),
@@ -475,7 +507,8 @@ function exportPNG(svg, name, scale = 2) {
   const errBox = $("error");
   const svg = $("diagram");
 
-  let current = { w: null, diagram: null, selectedStep: null };
+  const toggleAllBtn = $("toggle-all");
+  let current = { w: null, diagram: null, selectedStep: null, showAll: false };
 
   function setError(msg) {
     errBox.textContent = msg || "";
@@ -483,9 +516,13 @@ function exportPNG(svg, name, scale = 2) {
   }
 
   function paint() {
+    toggleAllBtn.classList.toggle("active", current.showAll);
+    toggleAllBtn.textContent = current.showAll ? "Hide northeast paths" : "Show all northeast paths";
     renderDiagram(current.diagram, svg, {
       selectedStep: current.selectedStep,
+      showAll: current.showAll,
       onDotClick: (step) => {
+        current.showAll = false; // a single click leaves "show all" mode
         current.selectedStep = current.selectedStep === step ? null : step;
         paint();
       },
@@ -496,6 +533,7 @@ function exportPNG(svg, name, scale = 2) {
     current.w = w;
     current.diagram = permutationToDiagram(w);
     current.selectedStep = null; // clear any trace on a new permutation
+    current.showAll = false;
     nSlider.value = String(w.length);
     nValue.textContent = String(w.length);
     wInput.value = formatPermutation(w);
@@ -503,7 +541,13 @@ function exportPNG(svg, name, scale = 2) {
     paint();
   }
 
-  // clicking empty canvas clears the current trace
+  toggleAllBtn.addEventListener("click", () => {
+    current.showAll = !current.showAll;
+    current.selectedStep = null;
+    paint();
+  });
+
+  // clicking empty canvas clears the current single trace
   svg.addEventListener("click", () => {
     if (current.selectedStep != null) { current.selectedStep = null; paint(); }
   });
