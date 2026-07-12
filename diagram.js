@@ -103,8 +103,15 @@ function permutationToDiagram(w) {
   }
 
   // Blue highlights: one per position i = 1..n.
+  // n = 1 is special: no dots, so highlight the left half of the single mountain.
   const highlights = [];
-  for (let i = 1; i <= n; i++) {
+  if (n === 1) {
+    highlights.push({
+      position: 1, mountain: w[0],
+      points: mountainSubPath(w[0], leftFrameX(w[0]), 2 * w[0]),
+    });
+  }
+  for (let i = 1; n >= 2 && i <= n; i++) {
     const v = w[i - 1]; // the mountain used at position i
     let xa, xb;
     if (i === 1) {
@@ -131,25 +138,30 @@ function permutationToDiagram(w) {
   // Black outer chevron: a wide "V" sitting strictly outside every mountain,
   // with slope-(+/-)1 arms whose top corners are half a position unit beyond
   // mountains 1 and n (i.e. at x = 1 and x = 2n+1, positions 0.5 and n+0.5).
-  const frame = [
-    { x: 1,         y: 0 },
-    { x: n + 1,     y: n }, // bottom vertex, one unit below the lowest crossing
-    { x: 2 * n + 1, y: 0 },
-  ];
+  // n = 0 (empty permutation) is a small standalone chevron with no mountains.
+  const frame = n === 0
+    ? [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }]
+    : [
+        { x: 1,         y: 0 },
+        { x: n + 1,     y: n }, // bottom vertex, one unit below the lowest crossing
+        { x: 2 * n + 1, y: 0 },
+      ];
 
   // The blue path as an ordered chain of nodes joined by arcs:
   //   node_0 (frame end of w_1) - dot_1 - dot_2 - ... - dot_{n-1} - node_n (frame end of w_n)
   // arc[t] is the blue sub-path on mountain w_t, oriented node_{t-1} -> node_t.
   // Interior nodes carry their crossing's (i, j) with i = min. Used for click tracing.
+  // (Only meaningful when there are dots to click, i.e. n >= 2.)
   const nodes = new Array(n + 1);
-  nodes[0] = { ...mountainEnds(w[0], n).leftEnd, end: true };
-  for (let t = 1; t <= n - 1; t++) {
-    nodes[t] = { x: dots[t - 1].x, y: dots[t - 1].y, i: dots[t - 1].pair[0], j: dots[t - 1].pair[1] };
-  }
-  nodes[n] = { ...mountainEnds(w[n - 1], n).leftEnd, end: true };
-
   const arcs = new Array(n + 1);
-  for (let t = 1; t <= n; t++) arcs[t] = orientedArc(w[t - 1], nodes[t - 1], nodes[t]);
+  if (n >= 1) {
+    nodes[0] = { ...mountainEnds(w[0], n).leftEnd, end: true };
+    for (let t = 1; t <= n - 1; t++) {
+      nodes[t] = { x: dots[t - 1].x, y: dots[t - 1].y, i: dots[t - 1].pair[0], j: dots[t - 1].pair[1] };
+    }
+    nodes[n] = { ...mountainEnds(w[n - 1], n).leftEnd, end: true };
+    for (let t = 1; t <= n; t++) arcs[t] = orientedArc(w[t - 1], nodes[t - 1], nodes[t]);
+  }
 
   return { n, w: w.slice(), mountains, dots, highlights, frame, nodes, arcs };
 }
@@ -218,7 +230,7 @@ function neHighlight(diagram, s) {
 // Returns { ok, w, n, error }.
 function parsePermutation(str) {
   const s = (str || "").trim();
-  if (s === "") return { ok: false, error: "Enter a permutation." };
+  if (s === "") return { ok: true, w: [], n: 0 }; // empty permutation
 
   let parts;
   if (/[\s,]/.test(s)) {
@@ -286,12 +298,12 @@ function ptsStr(points) {
 
 // Tunable appearance of the "show all" red/green paths (live-editable in the UI).
 const DEFAULT_PATH_STYLE = {
-  redColor: "#dc2626", redOpacity: 0.7,
+  redColor: "#dc2626", redOpacity: 0.6,
   greenColor: "#16a34a", greenOpacity: 0.5,
   blend: "normal", // mix-blend-mode for the colored paths
   top: "red",      // which color is drawn last (on top)
-  redWidth: 1.8,   // stroke widths as a multiple of the blue path width
-  greenWidth: 1.8,
+  redWidth: 1.5,   // stroke widths as a multiple of the blue path width
+  greenWidth: 4.0,
 };
 
 /**
@@ -306,8 +318,10 @@ function renderDiagram(diagram, svg, options = {}) {
   const style = { ...DEFAULT_PATH_STYLE, ...(options.style || {}) };
 
   // ---- viewBox (math bbox padded for labels) ----
-  // The frame is the widest/deepest element: x in [1, 2n+1], down to y = n.
-  const xMin = 1, xMax = 2 * n + 1, yMin = 0, yMax = n;
+  // The frame is the outermost element, so derive bounds from it (also works
+  // for n = 0, where the frame is a small standalone chevron).
+  const fx = frame.map((p) => p.x), fy = frame.map((p) => p.y);
+  const xMin = Math.min(...fx), xMax = Math.max(...fx), yMin = Math.min(...fy), yMax = Math.max(...fy);
   const padX = 0.5, padTop = 1.2, padBottom = 0.4;
   const vbX = (xMin - padX) * U;
   const vbY = (yMin - padTop) * U;
@@ -623,7 +637,7 @@ function exportPNG(svg, name, scale = 2) {
   function drawFromInput() {
     const res = parsePermutation(wInput.value);
     if (!res.ok) { setError(res.error); return; }
-    if (res.n < 2 || res.n > 20) { setError("n must be between 2 and 20."); return; }
+    if (res.n > 20) { setError("n must be between 0 and 20."); return; }
     draw(res.w);
   }
 

@@ -27,7 +27,7 @@
       <div class="control">
         <label for="n-slider">Size n = <span id="n-value">5</span></label>
         <div class="row">
-          <input id="n-slider" type="range" min="2" max="20" step="1" value="5" />
+          <input id="n-slider" type="range" min="0" max="20" step="1" value="5" />
           <button id="random-btn">Random</button>
         </div>
         <div class="hint">Moving the slider draws a random permutation of that size.</div>
@@ -54,11 +54,11 @@
       <summary>Path colors &amp; transparency (for "show all")</summary>
       <div class="style-grid">
         <label>Red color <input type="color" id="red-color" value="#dc2626" /></label>
-        <label>Red opacity <input type="range" id="red-opacity" min="0" max="1" step="0.05" value="0.7" /><output id="red-opacity-val">0.70</output></label>
-        <label>Red width <input type="range" id="red-width" min="0.5" max="4" step="0.1" value="1.8" /><output id="red-width-val">1.8</output></label>
+        <label>Red opacity <input type="range" id="red-opacity" min="0" max="1" step="0.05" value="0.6" /><output id="red-opacity-val">0.60</output></label>
+        <label>Red width <input type="range" id="red-width" min="0.5" max="4" step="0.1" value="1.5" /><output id="red-width-val">1.5</output></label>
         <label>Green color <input type="color" id="green-color" value="#16a34a" /></label>
         <label>Green opacity <input type="range" id="green-opacity" min="0" max="1" step="0.05" value="0.5" /><output id="green-opacity-val">0.50</output></label>
-        <label>Green width <input type="range" id="green-width" min="0.5" max="4" step="0.1" value="1.8" /><output id="green-width-val">1.8</output></label>
+        <label>Green width <input type="range" id="green-width" min="0.5" max="4" step="0.1" value="4.0" /><output id="green-width-val">4.0</output></label>
         <label>On top
           <select id="draw-order">
             <option value="red">Red</option>
