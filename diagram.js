@@ -538,7 +538,7 @@ function exportPNG(svg, name, scale = 2) {
   const errBox = $("error");
   const svg = $("diagram");
 
-  const toggleAllBtn = $("toggle-all");
+  const toggleAllBox = $("toggle-all");
   let current = { w: null, diagram: null, selectedStep: null, showAll: false };
 
   function setError(msg) {
@@ -547,8 +547,7 @@ function exportPNG(svg, name, scale = 2) {
   }
 
   function paint() {
-    toggleAllBtn.classList.toggle("active", current.showAll);
-    toggleAllBtn.textContent = current.showAll ? "Hide northeast paths" : "Show all northeast paths";
+    toggleAllBox.checked = current.showAll; // keep the checkbox in sync
     renderDiagram(current.diagram, svg, {
       selectedStep: current.selectedStep,
       showAll: current.showAll,
@@ -563,8 +562,8 @@ function exportPNG(svg, name, scale = 2) {
   function draw(w) {
     current.w = w;
     current.diagram = permutationToDiagram(w);
-    current.selectedStep = null; // clear any trace on a new permutation
-    current.showAll = false;
+    current.selectedStep = null; // clear any single trace on a new permutation
+    // NB: current.showAll is intentionally preserved across permutations
     nSlider.value = String(w.length);
     nValue.textContent = String(w.length);
     wInput.value = formatPermutation(w);
@@ -572,8 +571,8 @@ function exportPNG(svg, name, scale = 2) {
     paint();
   }
 
-  toggleAllBtn.addEventListener("click", () => {
-    current.showAll = !current.showAll;
+  toggleAllBox.addEventListener("change", () => {
+    current.showAll = toggleAllBox.checked;
     current.selectedStep = null;
     paint();
   });

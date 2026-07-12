@@ -136,10 +136,18 @@ button.primary:hover { background: var(--accent-dark); }
   margin-bottom: 0.6rem;
 }
 
-#toggle-all.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.toggle-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-all-label input {
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .canvas-hint {
