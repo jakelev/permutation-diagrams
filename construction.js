@@ -56,8 +56,12 @@
     svg.style.width = w + "px";
     svg.style.height = w / aspect + "px";
   }
+  // u is a single diagram (can be tall); w and v stack, so each gets ~half the
+  // remaining height. Sized to keep all three above the fold.
   const maxHFor = (which) =>
-    which === "u" ? Math.min(window.innerHeight * 0.62, 520) : Math.min(window.innerHeight * 0.34, 300);
+    which === "u"
+      ? Math.min(window.innerHeight * 0.66, 520)
+      : Math.min((window.innerHeight - 180) / 2 - 44, 260);
 
   // ---- build state.diag from the current inputs ----
   function build() {

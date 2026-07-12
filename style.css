@@ -26,7 +26,41 @@ main {
   padding: 2rem 1.5rem 4rem;
 }
 
-main.wide { max-width: 1400px; }
+main.wide { max-width: 1400px; padding-top: 0.6rem; }
+
+.page-nav .info {
+  cursor: help;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+/* compact single-line controls (construction page) */
+.controls-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 1.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.cbar { display: flex; align-items: center; gap: 0.5rem; }
+
+.cbar-label {
+  font-weight: 700;
+  font-style: italic;
+  cursor: help;
+}
+
+.cbar input[type="text"] {
+  flex: 0 0 auto;
+  width: 130px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.95rem;
+}
+
+.cbar input[type="range"] { width: 100px; accent-color: var(--accent); }
+
+.cbar button { padding: 0.4rem 0.7rem; font-size: 0.85rem; }
 
 .cols {
   display: grid;
@@ -43,13 +77,24 @@ main.wide { max-width: 1400px; }
 
 .diagram-block { margin: 0; }
 
+/* caption overlaid in the empty top-left corner of the diagram's "V" */
 .diagram-block figcaption {
-  font-size: 0.9rem;
+  position: absolute;
+  top: 0.5rem;
+  left: 0.6rem;
+  z-index: 2;
+  margin: 0;
+  padding: 0.05rem 0.4rem;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 0.35rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  word-break: break-word;
+  max-width: calc(100% - 1.2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hl-label {
@@ -220,6 +265,7 @@ button.primary:hover { background: var(--accent-dark); }
 }
 
 .diagram-wrap {
+  position: relative;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
