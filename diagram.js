@@ -396,6 +396,24 @@ function renderDiagram(diagram, svg, options = {}) {
   svg.appendChild(gOverlay);
   svg.appendChild(gDots);
   svg.appendChild(gLabels);
+
+  fitToView(svg);
+}
+
+// Size the SVG to the largest box fitting both the container width and the
+// remaining viewport height; the viewBox letterboxes the drawing to fit.
+function fitToView(svg) {
+  const vb = svg.viewBox.baseVal;
+  if (!vb || !vb.height) return;
+  const aspect = vb.width / vb.height;
+  const wrap = svg.parentElement;
+  const cs = getComputedStyle(wrap);
+  const maxW = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const top = svg.getBoundingClientRect().top;
+  const availH = Math.max(200, window.innerHeight - top - 24);
+  const w = Math.min(maxW, availH * aspect);
+  svg.style.width = w + "px";
+  svg.style.height = w / aspect + "px";
 }
 
 /* ------------------------------------------------------------------ */
@@ -489,6 +507,9 @@ function exportPNG(svg, name, scale = 2) {
   svg.addEventListener("click", () => {
     if (current.selectedStep != null) { current.selectedStep = null; paint(); }
   });
+
+  // keep the diagram fitted to the viewport
+  window.addEventListener("resize", () => fitToView(svg));
 
   function drawFromInput() {
     const res = parsePermutation(wInput.value);
