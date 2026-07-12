@@ -284,6 +284,15 @@ function ptsStr(points) {
   return points.map((p) => `${p.x * U},${p.y * U}`).join(" ");
 }
 
+// Tunable appearance of the "show all" red/green paths (live-editable in the UI).
+const DEFAULT_PATH_STYLE = {
+  redColor: "#dc2626", redOpacity: 0.7,
+  greenColor: "#16a34a", greenOpacity: 0.5,
+  blend: "normal", // mix-blend-mode for the colored paths
+  top: "red",      // which color is drawn last (on top)
+  width: 1.8,      // stroke width as a multiple of the blue path width
+};
+
 /**
  * Render a diagram into an <svg> element (cleared first).
  *
@@ -293,6 +302,7 @@ function ptsStr(points) {
 function renderDiagram(diagram, svg, options = {}) {
   const { n, mountains, dots, highlights, frame } = diagram;
   const { selectedStep = null, onDotClick = null, showAll = false } = options;
+  const style = { ...DEFAULT_PATH_STYLE, ...(options.style || {}) };
 
   // ---- viewBox (math bbox padded for labels) ----
   // The frame is the widest/deepest element: x in [1, 2n+1], down to y = n.
@@ -319,7 +329,6 @@ function renderDiagram(diagram, svg, options = {}) {
   const gLabels = el("g", {});
 
   const HL = "#f59e0b"; // amber highlight for a single traced sub-path
-  const RED = "#dc2626", GREEN = "#16a34a"; // "show all" coloring
 
   // all NE traces (step 1..n-1), computed once for both paths and dot-markers
   const allTraces = showAll
@@ -362,29 +371,27 @@ function renderDiagram(diagram, svg, options = {}) {
     }));
   }
 
-  // ---- all NE paths, red/green color-coded ----
-  // Red is solid & continuous so it stands out; green is dashed and drawn on
-  // top, so on shared segments the two colors interleave (red shows through the
-  // gaps) instead of compositing to a muddy orange. Dot-only (length-0) traces
-  // are shown as green dot-markers in the dots layer below.
+  // ---- all NE paths, red/green color-coded (appearance is user-tunable) ----
+  // Dot-only (length-0) traces are shown as green dot-markers in the dots layer.
   if (showAll) {
-    const dash = `${(wBlue * 4).toFixed(2)} ${(wBlue * 3).toFixed(2)}`;
-    const drawTrace = (t, color, opacity, dashed) => {
+    const drawTrace = (t, color, opacity) => {
       if (t.points.length < 2) return;
-      const attrs = {
+      const poly = el("polyline", {
         points: ptsStr(t.points),
         fill: "none",
         stroke: color,
-        "stroke-width": wBlue * 1.8,
+        "stroke-width": wBlue * style.width,
         "stroke-linejoin": "round",
-        "stroke-linecap": dashed ? "butt" : "round",
+        "stroke-linecap": "round",
         "stroke-opacity": String(opacity),
-      };
-      if (dashed) attrs["stroke-dasharray"] = dash;
-      gOverlay.appendChild(el("polyline", attrs));
+      });
+      if (style.blend && style.blend !== "normal") poly.style.mixBlendMode = style.blend;
+      gOverlay.appendChild(poly);
     };
-    for (const t of allTraces) if (isRed(t)) drawTrace(t, RED, 0.7, false);
-    for (const t of allTraces) if (!isRed(t)) drawTrace(t, GREEN, 0.85, true);
+    const drawReds = () => { for (const t of allTraces) if (isRed(t)) drawTrace(t, style.redColor, style.redOpacity); };
+    const drawGreens = () => { for (const t of allTraces) if (!isRed(t)) drawTrace(t, style.greenColor, style.greenOpacity); };
+    // draw the "top" color last so it lands on top
+    if (style.top === "red") { drawGreens(); drawReds(); } else { drawReds(); drawGreens(); }
   }
 
   // ---- single traced sub-path overlay (from a clicked dot) ----
@@ -407,7 +414,7 @@ function renderDiagram(diagram, svg, options = {}) {
     const dotOnlyGreen = showAll && allTraces[d.step - 1].dotOnly;
     const c = el("circle", {
       cx: d.x * U, cy: d.y * U, r: isSel || dotOnlyGreen ? rDot * 1.25 : rDot,
-      fill: isSel ? HL : dotOnlyGreen ? GREEN : "#e23b3b",
+      fill: isSel ? HL : dotOnlyGreen ? style.greenColor : "#e23b3b",
       stroke: "#ffffff", "stroke-width": rDot * 0.35,
     });
     if (onDotClick) {
@@ -517,7 +524,10 @@ function exportPNG(svg, name, scale = 2) {
   const svg = $("diagram");
 
   const toggleAllBtn = $("toggle-all");
-  let current = { w: null, diagram: null, selectedStep: null, showAll: false };
+  let current = {
+    w: null, diagram: null, selectedStep: null, showAll: false,
+    style: { ...DEFAULT_PATH_STYLE },
+  };
 
   function setError(msg) {
     errBox.textContent = msg || "";
@@ -530,6 +540,7 @@ function exportPNG(svg, name, scale = 2) {
     renderDiagram(current.diagram, svg, {
       selectedStep: current.selectedStep,
       showAll: current.showAll,
+      style: current.style,
       onDotClick: (step) => {
         current.showAll = false; // a single click leaves "show all" mode
         current.selectedStep = current.selectedStep === step ? null : step;
@@ -537,6 +548,44 @@ function exportPNG(svg, name, scale = 2) {
       },
     });
   }
+
+  // ---- live style controls (color / transparency tuning) ----
+  const styleControls = {
+    redColor: $("red-color"), redOpacity: $("red-opacity"),
+    greenColor: $("green-color"), greenOpacity: $("green-opacity"),
+    width: $("line-width"), top: $("draw-order"), blend: $("blend-mode"),
+  };
+  const opacityOut = { redOpacity: $("red-opacity-val"), greenOpacity: $("green-opacity-val"), width: $("line-width-val") };
+
+  function readStyleControls() {
+    current.style = {
+      redColor: styleControls.redColor.value,
+      redOpacity: parseFloat(styleControls.redOpacity.value),
+      greenColor: styleControls.greenColor.value,
+      greenOpacity: parseFloat(styleControls.greenOpacity.value),
+      width: parseFloat(styleControls.width.value),
+      top: styleControls.top.value,
+      blend: styleControls.blend.value,
+    };
+    opacityOut.redOpacity.textContent = current.style.redOpacity.toFixed(2);
+    opacityOut.greenOpacity.textContent = current.style.greenOpacity.toFixed(2);
+    opacityOut.width.textContent = current.style.width.toFixed(1);
+    if (!current.showAll) { current.showAll = true; current.selectedStep = null; }
+    paint();
+  }
+
+  for (const ctrl of Object.values(styleControls)) ctrl.addEventListener("input", readStyleControls);
+
+  $("reset-style").addEventListener("click", () => {
+    styleControls.redColor.value = DEFAULT_PATH_STYLE.redColor;
+    styleControls.redOpacity.value = DEFAULT_PATH_STYLE.redOpacity;
+    styleControls.greenColor.value = DEFAULT_PATH_STYLE.greenColor;
+    styleControls.greenOpacity.value = DEFAULT_PATH_STYLE.greenOpacity;
+    styleControls.width.value = DEFAULT_PATH_STYLE.width;
+    styleControls.top.value = DEFAULT_PATH_STYLE.top;
+    styleControls.blend.value = DEFAULT_PATH_STYLE.blend;
+    readStyleControls();
+  });
 
   function draw(w) {
     current.w = w;

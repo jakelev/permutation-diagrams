@@ -50,6 +50,36 @@
       <span class="canvas-hint">Click a red dot to trace its northeast path (click again or click empty space to clear).</span>
     </div>
 
+    <details id="style-panel" class="style-panel">
+      <summary>Path colors &amp; transparency (for "show all")</summary>
+      <div class="style-grid">
+        <label>Red color <input type="color" id="red-color" value="#dc2626" /></label>
+        <label>Red opacity <input type="range" id="red-opacity" min="0" max="1" step="0.05" value="0.7" /><output id="red-opacity-val">0.70</output></label>
+        <label>Green color <input type="color" id="green-color" value="#16a34a" /></label>
+        <label>Green opacity <input type="range" id="green-opacity" min="0" max="1" step="0.05" value="0.5" /><output id="green-opacity-val">0.50</output></label>
+        <label>Line width <input type="range" id="line-width" min="1" max="3" step="0.1" value="1.8" /><output id="line-width-val">1.8</output></label>
+        <label>On top
+          <select id="draw-order">
+            <option value="red">Red</option>
+            <option value="green">Green</option>
+          </select>
+        </label>
+        <label>Blend mode
+          <select id="blend-mode">
+            <option value="normal">normal</option>
+            <option value="multiply">multiply</option>
+            <option value="darken">darken</option>
+            <option value="screen">screen</option>
+            <option value="lighten">lighten</option>
+            <option value="overlay">overlay</option>
+            <option value="hard-light">hard-light</option>
+            <option value="difference">difference</option>
+          </select>
+        </label>
+        <button id="reset-style" type="button">Reset to defaults</button>
+      </div>
+    </details>
+
     <div class="diagram-wrap">
       <svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
