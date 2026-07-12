@@ -5,6 +5,8 @@
 (function main() {
   const $ = (id) => document.getElementById(id);
   const wInput = $("w-input"), vInput = $("v-input"), xInput = $("x-input");
+  const nSlider = $("n-slider"), mSlider = $("m-slider");
+  const nValue = $("n-value"), mValue = $("m-value");
   const errBox = $("error");
   const svgW = $("diagram-w"), svgV = $("diagram-v"), svgU = $("diagram-u");
   const checkTccw = $("check-tccw");
@@ -66,6 +68,10 @@
     state.w = rw.w; state.v = rv.w;
 
     const n = state.w.length, m = state.v.length, N = n + m + 1;
+    nSlider.value = String(Math.min(n, +nSlider.max));
+    mSlider.value = String(Math.min(m, +mSlider.max));
+    nValue.textContent = String(n);
+    mValue.textContent = String(m);
     $("x-req").textContent = `(need ${n} of {2,…,${N}})`;
 
     state.X = parseIntList(xInput.value);
@@ -125,8 +131,11 @@
   }
 
   // ---- inputs ----
+  // regenerate X if the current one no longer fits the (freshly typed) w, v sizes
   function ensureValidX() {
-    const n = state.w.length, N = n + state.v.length + 1;
+    const r = parsePermutation(wInput.value), rv = parsePermutation(vInput.value);
+    const n = r.ok ? r.w.length : 0;
+    const N = n + (rv.ok ? rv.w.length : 0) + 1;
     if (!isValidX(parseIntList(xInput.value), n, N)) {
       xInput.value = randomSubset(n, N).join(" ");
     }
@@ -150,18 +159,14 @@
   xInput.addEventListener("keydown", (e) => { if (e.key === "Enter") build(); });
   xInput.addEventListener("blur", build);
 
-  function randSize() { return 1 + Math.floor(Math.random() * 4); } // 1..4
+  function newW(n) { wInput.value = formatPermutation(randomTCCW(n)); ensureValidX(); build(); }
+  function newV(m) { vInput.value = formatPermutation(randomTCCW(m)); ensureValidX(); build(); }
 
-  $("rand-w").addEventListener("click", () => {
-    wInput.value = formatPermutation(randomTCCW(randSize()));
-    ensureValidX();
-    build();
-  });
-  $("rand-v").addEventListener("click", () => {
-    vInput.value = formatPermutation(randomTCCW(randSize()));
-    ensureValidX();
-    build();
-  });
+  $("rand-w").addEventListener("click", () => newW(parseInt(nSlider.value, 10)));
+  $("rand-v").addEventListener("click", () => newV(parseInt(mSlider.value, 10)));
+
+  nSlider.addEventListener("input", () => { nValue.textContent = nSlider.value; newW(parseInt(nSlider.value, 10)); });
+  mSlider.addEventListener("input", () => { mValue.textContent = mSlider.value; newV(parseInt(mSlider.value, 10)); });
   $("rand-x").addEventListener("click", () => {
     const r = parsePermutation(wInput.value), rv = parsePermutation(vInput.value);
     const n = (r.ok ? r.w.length : 0), N = n + (rv.ok ? rv.w.length : 0) + 1;

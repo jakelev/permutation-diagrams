@@ -21,19 +21,25 @@
 
     <section class="controls">
       <div class="control">
-        <label for="w-input">Permutation w</label>
+        <label for="w-input">Permutation w &nbsp;<span class="muted-inline">n = <span id="n-value">3</span></span></label>
         <div class="row">
           <input id="w-input" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. 231" />
           <button id="rand-w" class="primary">Random TCCW</button>
+        </div>
+        <div class="row">
+          <input id="n-slider" type="range" min="0" max="10" step="1" value="3" />
         </div>
         <div class="hint">Reversed if needed so w<sub>1</sub> &le; w<sub>n</sub>.</div>
       </div>
 
       <div class="control">
-        <label for="v-input">Permutation v</label>
+        <label for="v-input">Permutation v &nbsp;<span class="muted-inline">m = <span id="m-value">3</span></span></label>
         <div class="row">
           <input id="v-input" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. 12" />
           <button id="rand-v" class="primary">Random TCCW</button>
+        </div>
+        <div class="row">
+          <input id="m-slider" type="range" min="0" max="10" step="1" value="3" />
         </div>
         <div class="hint">Reversed if needed so v<sub>1</sub> &ge; v<sub>m</sub>.</div>
       </div>
