@@ -321,6 +321,12 @@ function renderDiagram(diagram, svg, options = {}) {
   const HL = "#f59e0b"; // amber highlight for a single traced sub-path
   const RED = "#dc2626", GREEN = "#16a34a"; // "show all" coloring
 
+  // all NE traces (step 1..n-1), computed once for both paths and dot-markers
+  const allTraces = showAll
+    ? Array.from({ length: n - 1 }, (_, idx) => neHighlight(diagram, idx + 1))
+    : null;
+  const isRed = (t) => t.endJ > t.startJ; // red if j' > j, else green
+
   // ---- mountains (all light gray) ----
   for (const m of mountains) {
     gGray.appendChild(el("polyline", {
@@ -343,40 +349,42 @@ function renderDiagram(diagram, svg, options = {}) {
     "stroke-linecap": "round",
   }));
 
-  // ---- blue highlighted path (hidden while showing all NE paths) ----
-  if (!showAll) {
-    for (const h of highlights) {
-      if (h.points.length < 2) continue; // degenerate (dot at the very left end)
-      gBlue.appendChild(el("polyline", {
-        points: ptsStr(h.points),
-        fill: "none",
-        stroke: "#2f7bf0",
-        "stroke-width": wBlue,
-        "stroke-linejoin": "round",
-        "stroke-linecap": "round",
-      }));
-    }
+  // ---- blue highlighted path (always visible; NE colors overlay it) ----
+  for (const h of highlights) {
+    if (h.points.length < 2) continue; // degenerate (dot at the very left end)
+    gBlue.appendChild(el("polyline", {
+      points: ptsStr(h.points),
+      fill: "none",
+      stroke: "#2f7bf0",
+      "stroke-width": wBlue,
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round",
+    }));
   }
 
-  // ---- all NE paths, red/green color-coded (transparent, greens dimmer) ----
+  // ---- all NE paths, red/green color-coded ----
+  // Red is solid & continuous so it stands out; green is dashed and drawn on
+  // top, so on shared segments the two colors interleave (red shows through the
+  // gaps) instead of compositing to a muddy orange. Dot-only (length-0) traces
+  // are shown as green dot-markers in the dots layer below.
   if (showAll) {
-    const drawTrace = (t, color, opacity) => {
-      if (t.points.length < 2) return; // dot-only: coincides with the red dot
-      gOverlay.appendChild(el("polyline", {
+    const dash = `${(wBlue * 4).toFixed(2)} ${(wBlue * 3).toFixed(2)}`;
+    const drawTrace = (t, color, opacity, dashed) => {
+      if (t.points.length < 2) return;
+      const attrs = {
         points: ptsStr(t.points),
         fill: "none",
         stroke: color,
         "stroke-width": wBlue * 1.8,
         "stroke-linejoin": "round",
-        "stroke-linecap": "round",
+        "stroke-linecap": dashed ? "butt" : "round",
         "stroke-opacity": String(opacity),
-      }));
+      };
+      if (dashed) attrs["stroke-dasharray"] = dash;
+      gOverlay.appendChild(el("polyline", attrs));
     };
-    const traces = [];
-    for (let s = 1; s <= n - 1; s++) traces.push(neHighlight(diagram, s));
-    // red = j' > j (draw on top of the dimmer greens so they stand out)
-    for (const t of traces) if (!(t.endJ > t.startJ)) drawTrace(t, GREEN, 0.3);
-    for (const t of traces) if (t.endJ > t.startJ) drawTrace(t, RED, 0.6);
+    for (const t of allTraces) if (isRed(t)) drawTrace(t, RED, 0.7, false);
+    for (const t of allTraces) if (!isRed(t)) drawTrace(t, GREEN, 0.85, true);
   }
 
   // ---- single traced sub-path overlay (from a clicked dot) ----
@@ -393,12 +401,13 @@ function renderDiagram(diagram, svg, options = {}) {
     }));
   }
 
-  // ---- red dots (clickable) ----
+  // ---- red dots (clickable); in "show all", length-0 traces get a green marker ----
   for (const d of dots) {
     const isSel = d.step === selectedStep;
+    const dotOnlyGreen = showAll && allTraces[d.step - 1].dotOnly;
     const c = el("circle", {
-      cx: d.x * U, cy: d.y * U, r: isSel ? rDot * 1.25 : rDot,
-      fill: isSel ? HL : "#e23b3b",
+      cx: d.x * U, cy: d.y * U, r: isSel || dotOnlyGreen ? rDot * 1.25 : rDot,
+      fill: isSel ? HL : dotOnlyGreen ? GREEN : "#e23b3b",
       stroke: "#ffffff", "stroke-width": rDot * 0.35,
     });
     if (onDotClick) {
