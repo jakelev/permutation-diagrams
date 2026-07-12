@@ -123,10 +123,15 @@
     fitInto(svg, maxHFor(which));
   }
 
+  // highlight a whole diagram's path (used for w / v in the left column)
+  function wholePathOverlay(d, color) {
+    return d && d.n >= 1 ? [{ points: pathOverPositions(d, 1, d.n), color, width: 3.2, opacity: 0.55 }] : [];
+  }
+
   function draw() {
     checkTccw.checked = state.showAll;
-    renderOne("w", svgW, state.diag.w, []);
-    renderOne("v", svgV, state.diag.v, []);
+    renderOne("w", svgW, state.diag.w, state.hl.w ? wholePathOverlay(state.diag.w, COL.w) : []);
+    renderOne("v", svgV, state.diag.v, state.hl.v ? wholePathOverlay(state.diag.v, COL.v) : []);
     renderOne("u", svgU, state.diag.u, uOverlays());
   }
 
