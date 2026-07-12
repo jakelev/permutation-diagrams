@@ -539,10 +539,7 @@ function exportPNG(svg, name, scale = 2) {
   const svg = $("diagram");
 
   const toggleAllBtn = $("toggle-all");
-  let current = {
-    w: null, diagram: null, selectedStep: null, showAll: false,
-    style: { ...DEFAULT_PATH_STYLE },
-  };
+  let current = { w: null, diagram: null, selectedStep: null, showAll: false };
 
   function setError(msg) {
     errBox.textContent = msg || "";
@@ -555,7 +552,6 @@ function exportPNG(svg, name, scale = 2) {
     renderDiagram(current.diagram, svg, {
       selectedStep: current.selectedStep,
       showAll: current.showAll,
-      style: current.style,
       onDotClick: (step) => {
         current.showAll = false; // a single click leaves "show all" mode
         current.selectedStep = current.selectedStep === step ? null : step;
@@ -563,50 +559,6 @@ function exportPNG(svg, name, scale = 2) {
       },
     });
   }
-
-  // ---- live style controls (color / transparency tuning) ----
-  const styleControls = {
-    redColor: $("red-color"), redOpacity: $("red-opacity"), redWidth: $("red-width"),
-    greenColor: $("green-color"), greenOpacity: $("green-opacity"), greenWidth: $("green-width"),
-    top: $("draw-order"), blend: $("blend-mode"),
-  };
-  const numOut = {
-    redOpacity: $("red-opacity-val"), greenOpacity: $("green-opacity-val"),
-    redWidth: $("red-width-val"), greenWidth: $("green-width-val"),
-  };
-
-  function readStyleControls() {
-    current.style = {
-      redColor: styleControls.redColor.value,
-      redOpacity: parseFloat(styleControls.redOpacity.value),
-      redWidth: parseFloat(styleControls.redWidth.value),
-      greenColor: styleControls.greenColor.value,
-      greenOpacity: parseFloat(styleControls.greenOpacity.value),
-      greenWidth: parseFloat(styleControls.greenWidth.value),
-      top: styleControls.top.value,
-      blend: styleControls.blend.value,
-    };
-    numOut.redOpacity.textContent = current.style.redOpacity.toFixed(2);
-    numOut.greenOpacity.textContent = current.style.greenOpacity.toFixed(2);
-    numOut.redWidth.textContent = current.style.redWidth.toFixed(1);
-    numOut.greenWidth.textContent = current.style.greenWidth.toFixed(1);
-    if (!current.showAll) { current.showAll = true; current.selectedStep = null; }
-    paint();
-  }
-
-  for (const ctrl of Object.values(styleControls)) ctrl.addEventListener("input", readStyleControls);
-
-  $("reset-style").addEventListener("click", () => {
-    styleControls.redColor.value = DEFAULT_PATH_STYLE.redColor;
-    styleControls.redOpacity.value = DEFAULT_PATH_STYLE.redOpacity;
-    styleControls.redWidth.value = DEFAULT_PATH_STYLE.redWidth;
-    styleControls.greenColor.value = DEFAULT_PATH_STYLE.greenColor;
-    styleControls.greenOpacity.value = DEFAULT_PATH_STYLE.greenOpacity;
-    styleControls.greenWidth.value = DEFAULT_PATH_STYLE.greenWidth;
-    styleControls.top.value = DEFAULT_PATH_STYLE.top;
-    styleControls.blend.value = DEFAULT_PATH_STYLE.blend;
-    readStyleControls();
-  });
 
   function draw(w) {
     current.w = w;
