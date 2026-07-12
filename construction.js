@@ -58,10 +58,12 @@
   }
   // u is a single diagram (can be tall); w and v stack, so each gets ~half the
   // remaining height. Sized to keep all three above the fold.
-  const maxHFor = (which) =>
-    which === "u"
-      ? Math.min(window.innerHeight * 0.66, 520)
-      : Math.min((window.innerHeight - 180) / 2 - 44, 260);
+  const maxHFor = (which) => {
+    const H = window.innerHeight || 800;
+    return which === "u"
+      ? Math.min(H * 0.66, 520)
+      : Math.max(150, Math.min((H - 180) / 2 - 44, 260));
+  };
 
   // ---- build state.diag from the current inputs ----
   function build() {
