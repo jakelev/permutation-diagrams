@@ -75,6 +75,10 @@ main.wide { max-width: 1400px; padding-top: 0.6rem; }
 
 .col-left { display: flex; flex-direction: column; gap: 1rem; }
 
+/* the output (u) diagram fills its width, so its numbering reaches the top;
+   add headroom so the overlaid caption doesn't overlap it */
+.col-right .diagram-wrap { padding-top: 2.4rem; }
+
 .diagram-block { margin: 0; }
 
 /* caption overlaid in the empty top-left corner of the diagram's "V" */
@@ -202,23 +206,16 @@ input[type="range"] { flex: 1; accent-color: var(--accent); }
 
 button {
   padding: 0.5rem 0.9rem;
-  border: 1px solid var(--border);
-  background: #fff;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
   border-radius: 7px;
   font-size: 0.9rem;
   cursor: pointer;
   white-space: nowrap;
 }
 
-button:hover { background: #f2f4f7; }
-
-button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-button.primary:hover { background: var(--accent-dark); }
+button:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
 
 .hint {
   color: var(--muted);
